@@ -3,7 +3,7 @@
 -cpp
 #-compr=max
 
-@../core/http_connector.hbp
+@./http_connector.hbp
 
 ./http_connector_tst.prg
 
