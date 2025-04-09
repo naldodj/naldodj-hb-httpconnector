@@ -1,0 +1,11 @@
+hbct.hbc
+hbtip.hbc
+hbssl.hbc
+hbcurl.hbc
+hbhttpd.hbc
+
+#if defined(__PLATFORM__WINDOWS)
+hbwin.hbc
+#endif
+
+#-w3 -es2 -lm

@@ -1,0 +1,10 @@
+-w3 -es2
+
+-cpp
+#-compr=max
+
+@../core/http_connector.hbp
+
+./http_connector_tst.prg
+
+-o./${hb_name}
