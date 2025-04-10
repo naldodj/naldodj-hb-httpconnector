@@ -1,8 +1,7 @@
 hbct.hbc
 hbtip.hbc
-hbssl.hbc
+# hbssl.hbc //get by tip
 hbcurl.hbc
-hbhttpd.hbc
 
 #if defined(__PLATFORM__WINDOWS)
 hbwin.hbc

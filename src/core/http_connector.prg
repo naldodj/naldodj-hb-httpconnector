@@ -29,6 +29,7 @@ class THttpConnector
 
     data hHeaders init { => } as hash // HTTP headers
 
+    data lHasSSL init tip_SSL()
     data lVerifySSL init .F. as logical // SSL verification flag
 
     data nError init 0 as numeric     // Error code
@@ -45,8 +46,12 @@ class THttpConnector
     method SetTimeout(nSeconds as numeric) as numeric
     method ClearHeaders() as hash
     method SetSSLVerify(lVerify as logical) as logical
+
+    //Virtual Methods
     method SendRequest(cMethod as character,cData as character,cQuery as character) as hash virtual
     method Close() as numeric virtual
+    method Reset() as numeric virtual
+    method ResetAll() as numeric virtual
 
 end class
 
@@ -83,7 +88,8 @@ method SetTimeout(nSeconds as numeric) class THttpConnector
     return(self:nTimeout) as numeric
 
 method SetSSLVerify(lVerify as logical) class THttpConnector
-    self:lVerifySSL:=lVerify
+    hb_default(@lVerify,.F.)
+    self:lVerifySSL:=self:lHasSSL.and.lVerify
     return(self:lVerifySSL) as logical
 
 ************************************************************************************************************************
@@ -99,6 +105,8 @@ class TCURLHTTPConnector FROM THttpConnector
     method ClearOptions() as hash
     method SendRequest(cMethod as character,cData as character,cQuery as character) as hash
     method Close() as numeric
+    method Reset() as numeric
+    method ResetAll() as numeric
 
 end class
 
@@ -154,7 +162,7 @@ method SendRequest(cMethod as character,cData as character,cQuery as character) 
         return(ResponseAsHash(""/*cBody*/,""/*cHeaders*/,500/*http_status*/,self:cError/*cError*/,500/*nError*/))
     endif
 
-    curl_easy_reset(self:phCurl)
+    self:Reset()
 
     cCURLOptions:=ValType(self:hCURLOptions)
 
@@ -269,6 +277,18 @@ method Close() class TCURLHTTPConnector
     curl_global_cleanup()
     return(0) as numeric
 
+method Reset() class TCURLHTTPConnector
+    if (valType(self:phCurl)=="P")
+        curl_easy_reset(self:phCurl)
+    endif
+    return(0) as numeric
+
+method ResetAll() class TCURLHTTPConnector
+    self:Reset()
+    self:ClearHeaders()
+    self:ClearOptions()
+    return(0) as numeric
+
 ************************************************************************************************************************
 // Implementation for HBTIP
 class TIPHTTPConnector FROM THttpConnector
@@ -278,6 +298,8 @@ class TIPHTTPConnector FROM THttpConnector
     method New(cUrl as character) constructor
     method SendRequest(cMethod as character,cData as character,cQuery as character) as hash
     method Close() as numeric
+    method Reset() as numeric
+    method ResetAll() as numeric
 
 end class
 
@@ -349,6 +371,17 @@ method Close() class TIPHTTPConnector
     endif
     return(nRet) as numeric
 
+method Reset() class TIPHTTPConnector
+    if (valType(self:oClient)=="O")
+        self:oClient:Reset()
+    endif
+    return(0) as numeric
+
+method ResetAll() class TIPHTTPConnector
+    self:Reset()
+    self:ClearHeaders()
+    return(0) as numeric
+
 #if defined(__PLATFORM__WINDOWS)
     ************************************************************************************************************************
     // Implementation for MSXML2.ServerXMLHTTP.6.0
@@ -359,6 +392,8 @@ method Close() class TIPHTTPConnector
         method New(cUrl as character) constructor
         method SendRequest(cMethod as character,cData as character,cQuery as character)
         method Close() INLINE 0
+        method Reset() INLINE 0
+        method ResetAll() INLINE 0
 
     end class
 
@@ -435,6 +470,8 @@ method Close() class TIPHTTPConnector
         method New(cUrl as character) constructor
         method SendRequest(cMethod as character,cData as character,cQuery as character)
         method Close() INLINE 0
+        method Reset() INLINE 0
+        method ResetAll() INLINE 0
 
     end class
 
