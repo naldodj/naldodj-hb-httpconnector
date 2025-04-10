@@ -3,6 +3,10 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2025-04-10 08:44 UTC naldodj (Fix compiler errors)
+  ! src/core/http_connector.prg
+  * src/tst/http_connector_tst.exe
+
 2025-04-09 19:03 UTC naldodj
   + .gitattributes
   + bin/3rdpatch.hb

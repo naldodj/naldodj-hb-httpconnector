@@ -230,16 +230,13 @@ method SendRequest(cMethod as character,cData as character,cQuery as character) 
     if ((self:nError:=curl_easy_perform(self:phCurl))!=HB_CURLE_OK)
         self:cError:=curl_easy_strerror(self:nError)
         // Get status code
-        if (curl_easy_getinfo(self:phCurl,HB_CURLINFO_RESPONSE_CODE,@self:nHttpCode)!=HB_CURLE_OK)
-            self:nHttpCode:=500
-        endif
+        self:nHttpCode:=curl_easy_getinfo(self:phCurl,HB_CURLINFO_RESPONSE_CODE)
     else
         // Get status code
-        if (curl_easy_getinfo(self:phCurl,HB_CURLINFO_RESPONSE_CODE,@self:nHttpCode)!=HB_CURLE_OK)
-            self:nHttpCode:=-1
-        endif
+        self:nHttpCode:=curl_easy_getinfo(self:phCurl,HB_CURLINFO_RESPONSE_CODE)
         cResponse:=curl_easy_dl_buff_get(self:phCurl)
-        if ((curl_easy_getinfo(self:phCurl,HB_CURLINFO_HEADER_SIZE,@nSizeHeader)!=HB_CURLE_OK).or.Empty(nSizeHeader))
+        nSizeHeader:=curl_easy_getinfo(self:phCurl,HB_CURLINFO_HEADER_SIZE)
+        if (Empty(nSizeHeader))
             cCR:=CHR(13)
             cLF:=CHR(10)
             cCRLF:=cCR+cLF
@@ -376,9 +373,8 @@ method Close() class TIPHTTPConnector
     method SendRequest(cMethod as character,cData as character,cQuery as character) class TXMLHTTPConnector
 
         local cFullUrl as character:=self:oUrl:BuildAddress()
-        local cHeaders as charcter:=""
-        local cResponse as charcter:=""
-        local cRespHeaders as charcter:=""
+        local cResponse as character:=""
+        local cRespHeaders as character:=""
 
         local hHeader as hash
 
@@ -450,11 +446,11 @@ method Close() class TIPHTTPConnector
         endif
     return(self) as object
 
-    method SendRequest(cMethod as character,cData as character) class TWinHTTPConnector
+    method SendRequest(cMethod as character,cData as character,cQuery as character) class TWinHTTPConnector
 
         local cFullUrl as character:=self:oUrl:BuildAddress()
         local cResponse as character
-        local cRespHeaders as character:=""
+        local cRespHeaders as character
 
         local hHeader as hash
 
@@ -463,6 +459,8 @@ method Close() class TIPHTTPConnector
         local oHeaders as object
 
         local oError as object
+
+        HB_SYMBOL_UNUSED(cQuery)
 
         if (Empty(self:oHttp))
             return(ResponseAsHash(/*cBody*/,/*cHeaders*/,500/*http_status*/,self:cError/*cError*/,500/*nError*/))
@@ -490,7 +488,7 @@ method Close() class TIPHTTPConnector
             // Set headers
             for each hHeader in self:hHeaders
                 self:oHttp:SetRequestHeader(hHeader)
-            for each //hHeader
+            next each //hHeader
 
             self:oHttp:Send(cData)
             self:oHttp:WaitForResponse()
@@ -509,6 +507,7 @@ method Close() class TIPHTTPConnector
 
             self:cError:="WinHTTP Error: "+oError:Description
             self:nError:=500
+
             return(ResponseAsHash(/*cBody*/,/*cHeaders*/,500/*http_status*/,self:cError/*cError*/,self:nError/*nError*/))
 
         END SEQUENCE
