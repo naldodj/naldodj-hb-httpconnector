@@ -38,12 +38,18 @@ class THttpConnector
 
     data oUrl as object              // URL object
 
+    // New timeout granularidade
+    data nResolveTimeout init 180 as numeric
+    data nConnectTimeout init 180 as numeric
+    data nSendTimeout init 180 as numeric
+    data nReceiveTimeout init 180 as numeric
+
     method New(cUrl as character) constructor
     method Get(cQuery as character) as hash
     method Post(cData as character,cQuery as character) as hash
-    method SetProxy(cProxy as character) as character
+    method SetProxy(cProxy as character,nProxyType as numeric) as character
     method SetHeader(cKey as character,cValue as character) as hash
-    method SetTimeout(nSeconds as numeric) as numeric
+    method SetTimeOuts(nResolve,nConnect,nSend,nReceive) as numeric
     method ClearHeaders() as hash
     method SetSSLVerify(lVerify as logical) as logical
 
@@ -63,13 +69,15 @@ method New(cUrl as character) class THttpConnector
     return(self) as object
 
 method Get(cQuery as character) class THttpConnector
-    return(self:SendRequest("GET",cQuery)) as hash
+    return(self:SendRequest("GET",,cQuery)) as hash
 
 method Post(cData as character,cQuery as character) class THttpConnector
     return(self:SendRequest("POST",cData,cQuery)) as hash
 
-method SetProxy(cProxy as character) class THttpConnector
+method SetProxy(cProxy as character,nProxyType as numeric) class THttpConnector
     self:cProxy:=cProxy
+    hb_default(@nProxyType,2)  // Default: HTTP_PROXY_TYPE_PRECONFIG
+    self:nProxyType:=nProxyType
     return(self:cProxy) as character
 
 method SetHeader(cKey as character,cValue as character) class THttpConnector
@@ -82,17 +90,23 @@ method ClearHeaders() class THttpConnector
     endif
     return(self:hHeaders) as hash
 
-method SetTimeout(nSeconds as numeric) class THttpConnector
-    hb_default(@nSeconds,180)
-    self:nTimeout:=nSeconds
-    return(self:nTimeout) as numeric
+method SetTimeOuts(nResolve,nConnect,nSend,nReceive) class THttpConnector
+    hb_default(@nResolve,180)
+    hb_default(@nConnect,180)
+    hb_default(@nSend,180)
+    hb_default(@nReceive,180)
+    self:nResolveTimeout:=nResolve
+    self:nConnectTimeout:=nConnect
+    self:nSendTimeout:=nSend
+    self:nReceiveTimeout:=nReceive
+    return(0) as numeric
 
 method SetSSLVerify(lVerify as logical) class THttpConnector
     hb_default(@lVerify,.F.)
-    self:lVerifySSL:=self:lHasSSL.and.lVerify
+    self:lVerifySSL:=self:lHasSSL .and. lVerify
     return(self:lVerifySSL) as logical
 
-************************************************************************************************************************
+//********************************************************************************
 // Implementation for HBCURL
 class TCURLHTTPConnector FROM THttpConnector
 
@@ -206,18 +220,16 @@ method SendRequest(cMethod as character,cData as character,cQuery as character) 
 
     // Set timeout
     if ((cCURLOptions=="H").and.!hb_HHasKey(self:hCURLOptions,HB_CURLOPT_TIMEOUT))
-        if self:nTimeout != NIL
+        if self:nTimeout!=NIL
             curl_easy_setopt(self:phCurl,HB_CURLOPT_TIMEOUT,self:nTimeout)
         endif
     endif
 
     // Configure SSL based on scheme
     if self:oUrl:cProto == "https"
-        if ((cCURLOptions=="H").and.!hb_HHasKey(self:hCURLOptions,HB_CURLOPT_SSL_VERIFYPEER))
-            curl_easy_setopt(self:phCurl,HB_CURLOPT_SSL_VERIFYPEER,self:lVerifySSL)
-        endif
-        if ((cCURLOptions=="H").and.!hb_HHasKey(self:hCURLOptions,HB_CURLOPT_SSL_VERIFYHOST))
-            curl_easy_setopt(self:phCurl,HB_CURLOPT_SSL_VERIFYHOST,.F.)
+        if !self:lVerifySSL
+            curl_easy_setopt(self:phCurl,HB_CURLOPT_SSL_VERIFYPEER,0)
+            curl_easy_setopt(self:phCurl,HB_CURLOPT_SSL_VERIFYHOST,0)
         endif
     endif
 
@@ -252,7 +264,7 @@ method SendRequest(cMethod as character,cData as character,cQuery as character) 
             nATHeaderEnd:=AT(cCRLF+cCRLF,cResponse)  // First search for \r\r
             if (nATHeaderEnd==0)
                 nCRLF:=Len(cLF)
-                nATHeaderEnd:=AT(cLF+cLF,cResponse)  // If not found, try
+                nATHeaderEnd:=AT(cLF+cLF,cResponse)  // If not found,try
             endif
             nATHeaderEnd+=nCRLF+1
         else
@@ -264,7 +276,7 @@ method SendRequest(cMethod as character,cData as character,cQuery as character) 
             // Get the Body
             cResponse:=SubStr(cResponse,(nATHeaderEnd+1))
         else
-            // If no break is found, assume there is no header
+            // If no break is found,assume there is no header
             cRespHeaders:=""
         endif
     endif
@@ -382,177 +394,175 @@ method ResetAll() class TIPHTTPConnector
     self:ClearHeaders()
     return(0) as numeric
 
+//********************************************************************************
+// Implementation for WinHTTP
 #if defined(__PLATFORM__WINDOWS)
-    ************************************************************************************************************************
-    // Implementation for MSXML2.ServerXMLHTTP.6.0
-    class TXMLHTTPConnector FROM THttpConnector
+class TWinHTTPConnector FROM THttpConnector
 
-        data oHttp as object
+    data oHttp as object
 
-        method New(cUrl as character) constructor
-        method SendRequest(cMethod as character,cData as character,cQuery as character)
-        method Close() INLINE 0
-        method Reset() INLINE 0
-        method ResetAll() INLINE 0
+    data nProxyType init 2 as numeric
 
-    end class
+    method New(cUrl as character) constructor
+    method SendRequest(cMethod as character,cData as character,cQuery as character) as hash
+    method Close() INLINE 0
+    method Reset() INLINE 0
+    method ResetAll() INLINE 0
 
-    method New(cUrl as character) class TXMLHTTPConnector
-        self:SUPER:New(cUrl)
-        self:oHttp:=win_oleCreateObject("MSXML2.ServerXMLHTTP.6.0")
-        if (Empty(self:oHttp))
-            self:cError:="Failed to create MSXML2.ServerXMLHTTP object"
-        endif
+end class
+
+method New(cUrl as character) class TWinHTTPConnector
+    self:SUPER:New(cUrl)
+    self:oHttp:=win_oleCreateObject("WinHttp.WinHttpRequest.5.1")
+    if Empty(self:oHttp)
+        self:cError:="Failed to create WinHttpRequest object"
+    endif
     return(self) as object
 
-    method SendRequest(cMethod as character,cData as character,cQuery as character) class TXMLHTTPConnector
+method SendRequest(cMethod as character,cData as character,cQuery as character) class TWinHTTPConnector
 
-        local cFullUrl as character:=self:oUrl:BuildAddress()
-        local cResponse as character:=""
-        local cRespHeaders as character:=""
+    local cFullUrl as character:=self:oUrl:BuildAddress()
+    local cResponse as character
+    local cRespHeaders as character
 
-        local hHeader as hash
+    local hHeader as hash
 
-        local nStatus as numeric
+    local nStatus as numeric
 
-        local oError as object
+    local oError as object
 
-        HB_SYMBOL_UNUSED(cQuery)
+    HB_SYMBOL_UNUSED(cQuery)
 
-        cMethod:=Upper(AllTrim(cMethod))
+    BEGIN SEQUENCE
 
-        if (Empty(self:oHttp))
-            return(ResponseAsHash(/*cBody*/,/*cHeaders*/,500/*http_status*/,self:cError/*cError*/,500/*nError*/))
+        // Set timeouts with granularidade
+        self:oHttp:SetTimeOuts(;
+             self:nResolveTimeout*1000;
+            ,self:nConnectTimeout*1000;
+            ,self:nSendTimeout*1000;
+            ,self:nReceiveTimeout*1000;
+        )
+
+        // Proxy configuration
+        if !Empty(self:cProxy)
+            self:oHttp:SetProxy(self:nProxyType,self:cProxy)
         endif
 
-        BEGIN SEQUENCE WITH __BreakBlock()
-
-            self:oHttp:Open(cMethod,cFullUrl,.F.)
-
-            // Set headers
-            for each hHeader in self:hHeaders
-                self:oHttp:setRequestHeader(hHeader:__enumKey(),hHeader:__enumValue())
-            next each //hHeader
-
-            if (self:nTimeout!=NIL)
-                self:oHttp:setTimeouts((self:nTimeout*1000),(self:nTimeout*1000),(self:nTimeout*1000),(self:nTimeout*1000))
-            endif
-
-            if (!Empty(self:cProxy))
-                self:oHttp:setProxy(2,self:cProxy)
-            endif
-
-            self:oHttp:Send(cData)
-            self:oHttp:WaitForResponse()
-
-            nStatus:=self:oHttp:status
-            cResponse:=self:oHttp:responseText
-            cRespHeaders:=self:oHttp:getAllResponseHeaders()
-
-            self:nError:=hb_BitAnd(self:oHttp:number,0xFFFF)
-            self:cError:=self:oHttp:description
-
-        RECOVER USING oError
-
-            self:cError:="MSXML Error: "+oError:description
-            self:nError:=500
-
-        END SEQUENCE
-
-        return(ResponseAsHash(cResponse/*cBody*/,cRespHeaders/*cHeaders*/,nStatus/*http_status*/,self:cError/*cError*/,self:nError/*nError*/))
-
-    ************************************************************************************************************************
-    // Class for WinHttp.WinHttpRequest.5.1
-    class TWinHTTPConnector FROM THttpConnector
-
-        data oHttp as object
-
-        method New(cUrl as character) constructor
-        method SendRequest(cMethod as character,cData as character,cQuery as character)
-        method Close() INLINE 0
-        method Reset() INLINE 0
-        method ResetAll() INLINE 0
-
-    end class
-
-    method New(cUrl as character) class TWinHTTPConnector
-        self:SUPER:New(cUrl)
-        self:oHttp:=win_oleCreateObject("WinHttp.WinHttpRequest.5.1")
-        if (Empty(self:oHttp))
-            self:cError:="Failed to create WinHttpRequest object"
-        endif
-    return(self) as object
-
-    method SendRequest(cMethod as character,cData as character,cQuery as character) class TWinHTTPConnector
-
-        local cFullUrl as character:=self:oUrl:BuildAddress()
-        local cResponse as character
-        local cRespHeaders as character
-
-        local hHeader as hash
-
-        local nStatus as numeric
-
-        local oHeaders as object
-
-        local oError as object
-
-        HB_SYMBOL_UNUSED(cQuery)
-
-        if (Empty(self:oHttp))
-            return(ResponseAsHash(/*cBody*/,/*cHeaders*/,500/*http_status*/,self:cError/*cError*/,500/*nError*/))
+        // SSL configuration
+        if !self:lVerifySSL
+            self:oHttp:Option(4,0x3300) // Ignore certificate errors
         endif
 
-        BEGIN SEQUENCE WITH __BreakBlock()
+        self:oHttp:Open(cMethod,cFullUrl,.F.)
 
-            // Set timeout
-            if (self:nTimeout!=NIL)
-                self:oHttp:SetTimeouts((self:nTimeout*1000),(self:nTimeout*1000),(self:nTimeout*1000),(self:nTimeout*1000))
-            endif
+        // Set headers
+        for each hHeader in self:hHeaders
+            self:oHttp:setRequestHeader(hHeader:__enumKey(),hHeader:__enumValue())
+        next each
 
-            // Set proxy
-            if (!Empty(self:cProxy))
-                self:oHttp:SetProxy(2,self:cProxy)  // 2:=HTTP_PROXY_TYPE_PRECONFIG
-            endif
+        self:oHttp:Send(cData)
+        self:oHttp:WaitForResponse()
 
-            // Configure SSL
-            if (!self:lVerifySSL)
-                //self:oHttp:Option(4):=0x3300  // Ignore certificate errors (SslErrorIgnoreFlags)
-            endif
+        nStatus:=self:oHttp:Status
+        cResponse:=self:oHttp:ResponseText
+        cRespHeaders:=self:oHttp:GetAllResponseHeaders()
 
-            self:oHttp:Open(cMethod,cFullUrl,.F.)
+    RECOVER USING oError
 
-            // Set headers
-            for each hHeader in self:hHeaders
-                self:oHttp:setRequestHeader(hHeader:__enumKey(),hHeader:__enumValue())
-            next each //hHeader
+        self:cError:="WinHTTP Error: " + oError:description + " (Code: " + hb_ntos(oError:code) + ")"
+        self:nError:=oError:code
 
-            self:oHttp:Send(cData)
-            self:oHttp:WaitForResponse()
+    END SEQUENCE
 
-            nStatus:=self:oHttp:Status
-            cResponse:=self:oHttp:ResponseText
+    return(ResponseAsHash(cResponse,cRespHeaders,nStatus,self:cError,self:nError))
 
-            // Get response headers
-            oHeaders:=self:oHttp:GetAllResponseHeaders()
-            cRespHeaders:=oHeaders:Text
-
-            self:nError:=hb_BitAnd(self:oHttp:number,0xFFFF)
-            self:cError:=self:oHttp:description
-
-        RECOVER USING oError
-
-            self:cError:="WinHTTP Error: "+oError:Description
-            self:nError:=500
-
-            return(ResponseAsHash(/*cBody*/,/*cHeaders*/,500/*http_status*/,self:cError/*cError*/,self:nError/*nError*/))
-
-        END SEQUENCE
-
-        return(ResponseAsHash(cResponse/*cBody*/,cRespHeaders/*cHeaders*/,nStatus/*http_status*/,self:cError/*cError*/,self:nError/*nError*/))
 #endif
 
-************************************************************************************************************************
+//********************************************************************************
+// Implementation for MSXML2
+#if defined(__PLATFORM__WINDOWS)
+class TXMLHTTPConnector FROM THttpConnector
+
+    data oHttp as object
+
+    data nProxyType init 2 as numeric
+
+    method New(cUrl as character) constructor
+    method SendRequest(cMethod as character,cData as character,cQuery as character) as hash
+    method Close() INLINE 0
+    method Reset() INLINE 0
+    method ResetAll() INLINE 0
+
+end class
+
+method New(cUrl as character) class TXMLHTTPConnector
+    self:SUPER:New(cUrl)
+    self:oHttp:=win_oleCreateObject("MSXML2.ServerXMLHTTP.6.0")
+    if (Empty(self:oHttp))
+        self:cError:="Failed to create MSXML2.ServerXMLHTTP object"
+    endif
+    return(self) as object
+
+method SendRequest(cMethod as character,cData as character,cQuery as character) class TXMLHTTPConnector
+
+    local cFullUrl as character:=self:oUrl:BuildAddress()
+    local cResponse as character
+    local cRespHeaders as character
+
+    local hHeader as hash
+
+    local nStatus as numeric
+
+    local oError as object
+
+    HB_SYMBOL_UNUSED(cQuery)
+
+    BEGIN SEQUENCE
+
+        // Set timeouts
+        self:oHttp:SetTimeOuts(;
+             self:nResolveTimeout*1000;
+            ,self:nConnectTimeout*1000;
+            ,self:nSendTimeout*1000;
+            ,self:nReceiveTimeout*1000;
+        )
+
+        // Proxy configuration
+        if (!Empty(self:cProxy))
+            self:oHttp:setProxy(self:nProxyType,self:cProxy)
+        endif
+
+        // SSL configuration
+        if ((self:oUrl:cProto=="https").and.(!self:lVerifySSL))
+            self:oHttp:setOption(4,0x3300)  // Ignore certificate errors
+        endif
+
+        self:oHttp:Open(cMethod,cFullUrl,.F.)
+
+        // Set headers
+        for each hHeader in self:hHeaders
+            self:oHttp:setRequestHeader(hHeader:__enumKey(),hHeader:__enumValue())
+        next each
+
+        self:oHttp:Send(cData)
+        self:oHttp:WaitForResponse()
+
+        nStatus:=self:oHttp:status
+        cResponse:=self:oHttp:responseText
+        cRespHeaders:=self:oHttp:getAllResponseHeaders()
+
+    RECOVER USING oError
+
+        self:cError:="MSXML Error: " + oError:description + " (Code: " + hb_ntos(oError:code) + ")"
+        self:nError:=oError:code
+
+    END SEQUENCE
+
+    return(ResponseAsHash(cResponse,cRespHeaders,nStatus,self:cError,self:nError))
+
+#endif
+
+//********************************************************************************
 static function ResponseAsHash(cBody as character,cHeaders as character,nStatus as numeric,cError as character,nError as numeric)
     hb_default(@cBody,"")
     hb_default(@cHeaders,"")
@@ -560,12 +570,12 @@ static function ResponseAsHash(cBody as character,cHeaders as character,nStatus 
     hb_default(@cError,"")
     hb_default(@nError,0)
     return(;
-        { ;
-             "body" => cBody;
+        {;
+            "body" => cBody;
             ,"headers" => cHeaders;
             ,"http_status" => nStatus;
-            ,"has_error" => ((nError!=0).and.(nStatus==0));
-            ,"conn_error"=> (nError!=0);
+            ,"has_error" => ((nError!=0) .and. (nStatus==0));
+            ,"conn_error" => (nError!=0);
             ,"error_number" => nError;
             ,"error_description" => cError;
         };
