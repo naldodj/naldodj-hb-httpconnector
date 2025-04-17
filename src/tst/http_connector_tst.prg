@@ -203,7 +203,7 @@ FUNCTION Main()
     ? Replicate("=",MaxCol())
 
     // GET Usando TWinHTTPConnector
-    ? "GET Usando TIP",hb_eol()
+    ? "GET Usando TWinHTTPConnector",hb_eol()
     oHTTPConnector:=TWinHTTPConnector():New(iif(tip_SSL(),"https","http")+"://duckduckgo.com/html/")
     oHTTPConnector:SetHeader("Accept", "text/html; charset=UTF-8")
     oHTTPConnector:SetHeader("Content-Type","text/html; charset=UTF-8")

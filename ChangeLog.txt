@@ -3,6 +3,13 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2025-04-17 13:18 UTC naldodj
+  + src/tst/go64.bat
+  + src/tst/http_connector_tst_msvc.exe
+  + src/tst/http_connector_tst_msvc.hbp
+  * src/core/http_connector.prg
+  * src/tst/http_connector_tst.prg
+
 2025-04-10 13:55 UTC naldodj (Disable SSL temporarily)
   * src/tst/hbmk.hbm
   * src/tst/http_connector_tst.exe

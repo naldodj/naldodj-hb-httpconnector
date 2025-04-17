@@ -431,7 +431,7 @@ method ResetAll() class TIPHTTPConnector
 
             // Set headers
             for each hHeader in self:hHeaders
-                self:oHttp:setRequestHeader(hHeader)
+                self:oHttp:setRequestHeader(hHeader:__enumKey(),hHeader:__enumValue())
             next each //hHeader
 
             if (self:nTimeout!=NIL)
@@ -524,7 +524,7 @@ method ResetAll() class TIPHTTPConnector
 
             // Set headers
             for each hHeader in self:hHeaders
-                self:oHttp:SetRequestHeader(hHeader)
+                self:oHttp:setRequestHeader(hHeader:__enumKey(),hHeader:__enumValue())
             next each //hHeader
 
             self:oHttp:Send(cData)
