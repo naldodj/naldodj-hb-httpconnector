@@ -1,10 +1,11 @@
 hbct.hbc
 hbtip.hbc
+hvvmmt.hbc
 # hbssl.hbc //get by tip
 hbcurl.hbc
 
 #if defined(__PLATFORM__WINDOWS)
-hbwin.hbc
+    hbwin.hbc
 #endif
 
-#-w3 -es2 -lm
+#-w3 -es2

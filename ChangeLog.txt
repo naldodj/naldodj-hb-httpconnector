@@ -3,6 +3,10 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2025-05-11 22:42 UTC naldodj
+  * src/tst/go64.bat
+  * src/tst/hbmk.hbm
+
 2025-05-01 21:27 UTC naldodj
   * src/tst/http_connector_tst_msvc.exe
   * src/tst/http_connector.hbp
