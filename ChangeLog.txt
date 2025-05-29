@@ -3,6 +3,9 @@
    Entries may not always be in chronological/commit order.
    See license at the end of file. */
 
+2025-05-29 11:44 UTC naldodj
+  * src/tst/go64.bat
+
 2025-05-11 22:42 UTC naldodj
   * src/tst/go64.bat
   * src/tst/hbmk.hbm
